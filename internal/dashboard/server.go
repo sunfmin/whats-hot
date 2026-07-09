@@ -30,7 +30,7 @@ type Server struct {
 func New() *Server {
 	return &Server{
 		resolver: monitor.NewResolver(),
-		stall:    newStallTracker(1024, 10),
+		stall:    newStallTracker(defaultStallConfig()),
 		alertFn:  func(t, m string) { _ = alert.Notify(t, m) },
 		clients:  map[chan monitor.Snapshot]struct{}{},
 	}

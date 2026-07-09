@@ -121,6 +121,46 @@ func TestDiffThroughput(t *testing.T) {
 	}
 }
 
+// A proxied download rides a loopback flow (app <-> proxy). nettop zeroes the process
+// row for it, so the per-process rate must come from the flow, and the machine total must
+// exclude loopback to avoid double-counting the proxy's real-interface leg.
+func TestDiffLoopbackCountedPerProcessButNotInTotal(t *testing.T) {
+	header := "time,,interface,state,bytes_in,bytes_out,rx_dupe,rx_ooo,re-tx,rtt_avg,rest"
+	loFlow := "tcp4 127.0.0.1:52000<->127.0.0.1:7890"
+	extFlow := "tcp4 10.0.0.2:53000<->1.2.3.4:443"
+	var b strings.Builder
+	for _, in := range []struct{ appIn, appOut, pxIn, pxOut int64 }{{0, 0, 0, 0}, {100000, 2000, 100000, 2000}} {
+		b.WriteString(header + "\n")
+		// app: nettop reports a zero process row, but its loopback flow carries the bytes.
+		b.WriteString(row("app.111", "", "", 0, 0, "") + "\n")
+		b.WriteString(row(loFlow, "lo0", "Established", in.appIn, in.appOut, "0.5 ms") + "\n")
+		// proxy: fetches over en0 (the real link) then forwards to the app over lo0.
+		b.WriteString(row("proxy.222", "", "", 0, 0, "") + "\n")
+		b.WriteString(row(extFlow, "en0", "Established", in.pxIn, in.pxOut, "20 ms") + "\n")
+	}
+	snap, ok := snapshotFromReader(strings.NewReader(b.String()), 1, fixedClock{time.Unix(0, 0)})
+	if !ok {
+		t.Fatal("ok=false")
+	}
+	byName := map[string]Process{}
+	for _, p := range snap.Processes {
+		byName[p.Name] = p
+	}
+	if byName["app"].DownBps != 100000 { // per-process gets its loopback rate
+		t.Errorf("app proc down = %d, want 100000", byName["app"].DownBps)
+	}
+	if byName["proxy"].DownBps != 100000 {
+		t.Errorf("proxy proc down = %d, want 100000", byName["proxy"].DownBps)
+	}
+	// total excludes the lo0 leg: only the proxy's en0 download counts, not the app's too.
+	if snap.TotalDownBps != 100000 {
+		t.Errorf("total down = %d, want 100000 (loopback excluded)", snap.TotalDownBps)
+	}
+	if snap.TotalUpBps != 2000 {
+		t.Errorf("total up = %d, want 2000", snap.TotalUpBps)
+	}
+}
+
 func TestDiffClampsNegative(t *testing.T) {
 	header := "time,,interface,state,bytes_in,bytes_out,rx_dupe,rx_ooo,re-tx,rtt_avg,rest"
 	var b strings.Builder

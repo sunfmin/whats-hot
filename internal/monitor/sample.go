@@ -188,17 +188,14 @@ func diff(prev, cur *frame, interval float64, ck clock) Snapshot {
 	for _, key := range cur.order {
 		p := cur.procs[key]
 		var prevFlows map[string]Flow
-		var pin, pout int64
 		if prev != nil {
 			if old, ok := prev.procs[key]; ok {
-				pin, pout = old.BytesIn, old.BytesOut
 				prevFlows = indexFlows(old.Flows)
 			}
 		}
 		out := Process{
 			Name: p.Name, PID: p.PID,
 			BytesIn: p.BytesIn, BytesOut: p.BytesOut,
-			DownBps: rate(p.BytesIn, pin), UpBps: rate(p.BytesOut, pout),
 		}
 		for _, fl := range p.Flows {
 			var bin, bout int64
@@ -207,10 +204,21 @@ func diff(prev, cur *frame, interval float64, ck clock) Snapshot {
 			}
 			fl.DownBps = rate(fl.BytesIn, bin)
 			fl.UpBps = rate(fl.BytesOut, bout)
+			// A process's throughput is the sum of its flow rates. nettop's own
+			// process-level counter under-reports (often to zero) loopback and proxied
+			// traffic, while the per-flow counters stay reliable — so for a proxied app
+			// its lo0 flow to the proxy is what reveals its true download rate.
+			out.DownBps += fl.DownBps
+			out.UpBps += fl.UpBps
+			// The machine total counts only real interfaces. Loopback (lo0) is local IPC
+			// that nettop mirrors on both endpoints (down==up), so counting it would
+			// double-count every proxied byte and dwarf the real link rate.
+			if !isLoopback(fl.Interface) {
+				snap.TotalDownBps += fl.DownBps
+				snap.TotalUpBps += fl.UpBps
+			}
 			out.Flows = append(out.Flows, fl)
 		}
-		snap.TotalDownBps += out.DownBps
-		snap.TotalUpBps += out.UpBps
 		snap.Processes = append(snap.Processes, out)
 	}
 	sort.SliceStable(snap.Processes, func(i, j int) bool {
@@ -218,6 +226,12 @@ func diff(prev, cur *frame, interval float64, ck clock) Snapshot {
 			snap.Processes[j].DownBps+snap.Processes[j].UpBps
 	})
 	return snap
+}
+
+// isLoopback reports whether a flow rides a loopback device (lo0, lo1, …) — local IPC,
+// not internet traffic, so it is excluded from the machine-wide total.
+func isLoopback(iface string) bool {
+	return strings.HasPrefix(iface, "lo")
 }
 
 func flowKey(f Flow) string {
