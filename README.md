@@ -1,72 +1,80 @@
 # whats-hot
 
-A Claude Code skill that investigates macOS apps consuming excessive CPU,
-memory, disk I/O, network, or GPU — and explains **why** they are hot.
+A Claude Code skill for macOS that does two things:
 
-It is a read-only, ask-before-sudo workflow that captures `sample(1)`, `vmmap`,
-`fs_usage`, `nettop`, and `powermetrics` traces, then summarises the hot code
-paths and likely root cause.
+1. **Resource hogs** — investigates apps consuming excessive CPU, memory, disk I/O, or
+   GPU and explains **why** they are hot, by capturing `sample(1)`, `vmmap`, `fs_usage`,
+   and `powermetrics` traces and summarising the hot code paths.
+2. **Network activity** — shows and queries live upload/download speed, which app/process
+   is using the network, per-connection remote IPs and hostnames, runs a link speed test,
+   and downloads files with automatic resume — via the bundled `netmon` tool.
+
+Observation is read-only and needs no sudo. Downloads (`netmon get`) are an explicit,
+user-initiated action that writes only the requested file.
 
 ## Install
-
-With [vercel-labs/skills](https://github.com/vercel-labs/skills):
 
 ```sh
 npx skills add sunfmin/whats-hot
 ```
 
-Or manually — clone into your skills directory:
+The diagnostic scripts work out of the box. The **network features need the `netmon`
+binary**, which is built from Go source bundled with the skill (Go is required):
 
 ```sh
-git clone https://github.com/sunfmin/whats-hot ~/.claude/skills/whats-hot
+bash ~/.claude/skills/whats-hot/scripts/build-netmon.sh   # -> ~/.local/bin/netmon
 ```
+
+Ensure `~/.local/bin` is on your `PATH`.
 
 ## Use
 
 In Claude Code, ask one of:
 
-- "what's hot on my mac"
-- "what's using my CPU"
-- "why are my fans loud"
-- "find the process eating RAM"
-- "profile PID 1234"
-- "why is `<app>` busy"
+**Hotness**
+- "what's hot on my mac" · "what's using my CPU" · "why are my fans loud"
+- "find the process eating RAM" · "profile PID 1234" · "why is `<app>` busy"
 
-Claude will run the bundled scripts to triage, profile, summarise hot frames,
-and break down memory. For commands that need root (`fs_usage`,
-`powermetrics`, `vmmap` of other-user PIDs), it states the command and waits
-for your OK.
+**Network**
+- "what's using my network" · "what's my upload/download speed right now"
+- "which app is connecting, and to what IPs?" · "watch my network" (opens a live dashboard)
+- "this download is stuck — resume it" · "download `<url>` and don't let it stall"
+- "how fast is my internet / run a speed test"
 
-## Workflow
+## netmon commands
 
-1. **Triage** — `scripts/top-offenders.sh` lists top CPU and RSS consumers.
-2. **CPU profile** — `scripts/profile-pid.sh <pid> [secs]` runs `sample(1)`.
-3. **Hot frames** — `scripts/summarize-sample.sh <file>` extracts leaves.
-4. **Memory** — `scripts/mem-breakdown.sh <pid>` (vmmap + footprint).
-5. **I/O + network** — `scripts/io-net-snapshot.sh <pid> [secs]` if needed.
-6. **GPU** — `scripts/gpu-snapshot.sh [secs]` if the app is graphical / ML.
+| Command | What it does | For |
+| --- | --- | --- |
+| `netmon snapshot [-seconds N] [-deep] [-all]` | Sample activity → JSON: total + per-process + per-connection throughput and remote endpoints | Claude / scripts |
+| `netmon serve [-addr host:port]` | Live web dashboard (htmlgo + SSE), opens in the browser | Humans |
+| `netmon get <url> [-o file]` | Download with HTTP-range auto-resume on stall | Both |
+| `netmon speedtest` | Link capacity via `networkQuality` (~15s) | Both |
 
-See [SKILL.md](SKILL.md) for the full protocol and [REFERENCE.md](REFERENCE.md)
-for tool catalog, hot-path patterns, and CPU-bound vs wait-bound interpretation.
+`-deep` resolves exact hostnames from the TLS SNI via packet capture (needs sudo). A
+remote endpoint is an IP + hostname + port + protocol — never a full URL, since HTTPS
+encrypts the path.
+
+See [SKILL.md](SKILL.md) for the full protocol, [docs/CONTEXT.md](docs/CONTEXT.md) for the
+domain vocabulary, [docs/adr/](docs/adr) for the design decisions, and
+[REFERENCE.md](REFERENCE.md) for trace interpretation.
 
 ## Sudo without a tty
 
-Claude Code runs `sudo` in a shell with no terminal, so the password prompt
-has nowhere to go. Options:
+Claude Code runs `sudo` with no terminal, so the password prompt has nowhere to go.
+`fs_usage`, `powermetrics`, `vmmap` of other-user PIDs, and `netmon -deep` need root. Options:
 
-- A narrow `NOPASSWD` sudoers entry for `sample`, `vmmap`, `footprint`,
-  `fs_usage`, `powermetrics`, `spindump`.
-- [`sudoplz`](https://github.com/vercel-labs/skills) — `SUDO_ASKPASS` helper
-  that pops a GUI approval dialog per command.
-- Run sudo commands yourself in a separate terminal and paste output back.
-
-If `~/.claude/CLAUDE.md` defines a `SUDO_ASKPASS` protocol, the skill uses it.
+- A narrow `NOPASSWD` sudoers entry for `sample`, `vmmap`, `footprint`, `fs_usage`,
+  `powermetrics`, `spindump`, `tcpdump`.
+- [`sudoplz`](https://github.com/vercel-labs/skills) — a `SUDO_ASKPASS` helper that pops a
+  GUI approval dialog per command.
+- Run the sudo command yourself in a separate terminal and paste the output back.
 
 ## Not in scope
 
-- Long-term monitoring → use Activity Monitor or the `system-monitor` skill.
 - Reproducing perf bugs in your own code → use the `diagnose` skill.
-- Killing or restarting offenders — the skill only investigates and recommends.
+- Killing or restarting offenders — the skill investigates and recommends only.
+- Persisting network history for later querying — `netmon` is point-in-time by design
+  ([ADR-0003](docs/adr/0003-no-persistence.md)); it keeps only an in-memory rolling window.
 
 ## License
 
