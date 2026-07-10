@@ -25,16 +25,12 @@ A transfer the tool initiates itself. Because the tool owns it, it can retry and
 _Avoid_: our download, internal download
 
 **Observed Transfer**:
-Any transfer belonging to another app (Safari, Chrome, App Store, curl…) that the monitor can watch but not control. The tool can alert on its stalls but cannot resume it.
+Any transfer belonging to another app (Safari, Chrome, App Store, curl…) that the monitor can watch but not control. The tool can observe it but cannot resume it.
 _Avoid_: external download, third-party download
 
 **Stall**:
-The condition where a transfer's Throughput stays at approximately zero while its Flow remains open, for longer than a threshold duration. Triggers an Alert for an Observed Transfer, or an auto-resume for a Managed Download.
+The condition where a transfer's Throughput stays at approximately zero while its Flow remains open, for longer than a threshold duration. Triggers an auto-resume for a Managed Download; for an Observed Transfer the tool takes no action beyond showing it in the live view.
 _Avoid_: hang, freeze, stuck (ok informally)
-
-**Alert**:
-A user-facing notification raised when a Stall is detected on an Observed Transfer the tool cannot itself resume.
-_Avoid_: warning, notification (ok informally)
 
 **Snapshot**:
 The machine-readable mode — sample network activity for a fixed window, emit one structured JSON result, then exit. The surface Claude drives.

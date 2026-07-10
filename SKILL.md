@@ -14,7 +14,7 @@ query **network activity** — throughput, connections, downloads — via the `n
   `renice`/`launchctl unload` and never touch the processes you observe. Recommend, ask the user.
 - **Downloads are the one explicit write.** `netmon get <url>` is a user-initiated action that
   writes only the file the user asked for. It never reaches into another app's transfer — the
-  monitor cannot resume Safari/Chrome/App Store downloads (see docs/adr/0001), only alert on them.
+  monitor cannot resume Safari/Chrome/App Store downloads (see docs/adr/0001); it can only observe them.
 - **No silent sudo.** `fs_usage`, `powermetrics`, `vmmap` of other-user PIDs, and `netmon -deep`
   (packet capture) need root. State the command, state why, wait for OK. If `~/.claude/CLAUDE.md`
   defines a `SUDO_ASKPASS` protocol, use it.
@@ -57,7 +57,7 @@ human at the browser, not for you):
   opens a live web dashboard in their browser. Do not run it yourself — you cannot read a live view.
 - **"a download is stuck / download this and don't let it stall"** → `netmon get <url> [-o file]`.
   Auto-resumes on a stall via HTTP range requests. For a stuck download in *another* app, netmon can
-  only observe/alert — tell the user to retry it there.
+  only observe it — tell the user to retry it there.
 - **"how fast is my connection / run a speed test"** → `netmon speedtest` (wraps networkQuality; ~15s).
 
 A **Remote Endpoint is an IP + hostname + port + protocol, never a full URL** — HTTPS encrypts the

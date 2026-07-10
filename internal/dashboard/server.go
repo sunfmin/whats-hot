@@ -10,16 +10,12 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/sunfmin/whats-hot/internal/alert"
 	"github.com/sunfmin/whats-hot/internal/monitor"
 )
 
-// Server broadcasts monitor Snapshots to connected browsers via SSE and raises Alerts
-// when an Observed Transfer stalls.
+// Server broadcasts monitor Snapshots to connected browsers via SSE.
 type Server struct {
 	resolver *monitor.Resolver
-	stall    *stallTracker
-	alertFn  func(title, msg string)
 
 	mu      sync.Mutex
 	latest  monitor.Snapshot
@@ -30,8 +26,6 @@ type Server struct {
 func New() *Server {
 	return &Server{
 		resolver: monitor.NewResolver(),
-		stall:    newStallTracker(defaultStallConfig()),
-		alertFn:  func(t, m string) { _ = alert.Notify(t, m) },
 		clients:  map[chan monitor.Snapshot]struct{}{},
 	}
 }
@@ -70,12 +64,9 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 	return nil
 }
 
-// pump consumes snapshots, updates the latest cache, runs stall detection, and fans out.
+// pump consumes snapshots, updates the latest cache, and fans out to clients.
 func (s *Server) pump(snaps <-chan monitor.Snapshot) {
 	for snap := range snaps {
-		for _, a := range s.stall.check(snap) {
-			s.alertFn(a.title, a.msg)
-		}
 		s.mu.Lock()
 		s.latest = snap
 		s.haveOne = true

@@ -28,7 +28,6 @@ func page() h.HTMLComponent {
 				gauge("up", "↑ upload"),
 			).Class("gauges"),
 			h.Tag("canvas").Attr("id", "chart", "height", "80").Class("chart"),
-			h.Div().Id("alerts").Class("alerts"),
 			h.Div(
 				h.Label("").Class("opt").Children(
 					h.Input("").Attr("type", "checkbox").Id("opt-idle"),
@@ -81,9 +80,6 @@ body{margin:0;font:14px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",syste
 .gauge.down .value{color:#39d353}
 .gauge.up .value{color:#4aa3ff}
 .chart{width:100%;background:#141924;border:1px solid #222a3a;border-radius:12px;margin-bottom:14px;display:block}
-.alerts:empty{display:none}
-.alerts{margin-bottom:12px}
-.alert{background:#3a1d1d;border:1px solid #7a2e2e;color:#ffb4b4;padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:13px}
 .controls{display:flex;gap:18px;align-items:center;margin-bottom:10px}
 .controls .opt{display:flex;gap:6px;align-items:center;cursor:pointer;user-select:none;
   color:#8a94a6;font-size:12px}
