@@ -54,9 +54,9 @@ In Claude Code, ask one of:
 remote endpoint is an IP + hostname + port + protocol — never a full URL, since HTTPS
 encrypts the path.
 
-See [SKILL.md](SKILL.md) for the full protocol, [docs/CONTEXT.md](docs/CONTEXT.md) for the
-domain vocabulary, [docs/adr/](docs/adr) for the design decisions, and
-[REFERENCE.md](REFERENCE.md) for trace interpretation.
+See [SKILL.md](skills/whats-hot/SKILL.md) for the full protocol, [docs/CONTEXT.md](skills/whats-hot/docs/CONTEXT.md) for the
+domain vocabulary, [docs/adr/](skills/whats-hot/docs/adr) for the design decisions, and
+[REFERENCE.md](skills/whats-hot/REFERENCE.md) for trace interpretation.
 
 ## Sudo without a tty
 
@@ -74,7 +74,7 @@ Claude Code runs `sudo` with no terminal, so the password prompt has nowhere to 
 - Reproducing perf bugs in your own code → use the `diagnose` skill.
 - Killing or restarting offenders — the skill investigates and recommends only.
 - Persisting network history for later querying — `netmon` is point-in-time by design
-  ([ADR-0003](docs/adr/0003-no-persistence.md)); it keeps only an in-memory rolling window.
+  ([ADR-0003](skills/whats-hot/docs/adr/0003-no-persistence.md)); it keeps only an in-memory rolling window.
 
 ## License
 
