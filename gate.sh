@@ -1,6 +1,6 @@
 #!/bin/sh
-# The definition of "may land": the Go module vets and tests, and every
-# script parses.
+# The definition of "may land": vet and test a Go module and parse scripts
+# when present. The hostvitals pointer has neither and needs no Go toolchain.
 set -e
 cd "$(dirname "$0")/skills/whats-hot"
 if [ -f go.mod ]; then
